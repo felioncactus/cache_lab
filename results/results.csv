@@ -1,0 +1,2 @@
+policy,capacity,workload,ops,gets,puts,hits,misses,elapsed_ms,hit_rate
+lru,10000,zipf,1000000,900000,100000,612345,287655,123.45,0.6804
