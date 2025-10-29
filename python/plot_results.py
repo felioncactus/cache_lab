@@ -1,35 +1,28 @@
-import argparse, glob, csv, collections
-import matplotlib.pyplot as plt
+import argparse, subprocess, csv, os, sys
 
-def load_rows(paths):
-    rows=[]
-    for p in paths:
-        with open(p, newline='') as f:
-            r=csv.DictReader(f)
-            rows += list(r)
-    return rows
+def run(policy, cap):
+    # build has to be done already; we assume ./bench exists
+    out = subprocess.check_output(["./bench", policy, str(cap)], text=True)
+    return out.strip()
 
-if __name__ == "__main__":
+def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--glob", default="../results/*.csv")
-    ap.add_argument("--metric", choices=["hit_rate","elapsed_ms"], default="hit_rate")
+    ap.add_argument("--caps", type=int, nargs="+", default=[64,128,256,512,1024,2048])
+    ap.add_argument("--policies", type=str, nargs="+", default=["lru","lfu","lecar"])
     args = ap.parse_args()
 
-    rows = load_rows(glob.glob(args.glob))
-    by = collections.defaultdict(list)
-    for r in rows:
-        key = (r["workload"], r["policy"])
-        by[key].append((int(r["capacity"]), float(r[args.metric])))
+    rows = []
+    for p in args.policies:
+        for c in args.caps:
+            line = run(p, c)
+            print(line)
+            parts = dict(kv.split("=") for kv in line.split())
+            rows.append([p, c, parts["hit_rate"]])
 
-    for (workload, policy), pts in by.items():
-        pts.sort()
-        xs = [c for c,_ in pts]
-        ys = [v for _,v in pts]
-        plt.plot(xs, ys, label=f"{policy} ({workload})")
+    # simple stdout CSV
+    print("policy,cap,hit_rate")
+    for p,c,h in rows:
+        print(f"{p},{c},{h}")
 
-    plt.xlabel("Capacity (items)")
-    plt.ylabel(args.metric)
-    plt.title(f"cachelab: {args.metric} vs capacity")
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+if __name__ == "__main__":
+    main()
